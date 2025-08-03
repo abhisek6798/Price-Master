@@ -190,11 +190,11 @@
         // 1. Get your SPREADSHEET_ID from the Google Sheet URL:
         //    Example URL: https://docs.google.com/spreadsheets/d/1A2B3C4D5E6F7G8H9I0J/edit#gid=0
         //    SPREADSHEET_ID would be: 1A2B3C4D5E6F7G8H9I0J
-        const SPREADSHEET_ID = '1NXd9nH41VBDTczdyHXNZnuvEpam-YxhU0UdGVIc7HEU'; // <--- REPLACE THIS
+        const SPREADSHEET_ID = '1NXd9nH41VBDTczdyHXNZnuvEpam-YxhU0UdGVIc7HEU'; // <--- Your actual Spreadsheet ID
 
         // 2. Get your SHEET_NAME (usually the tab name at the bottom of the sheet)
         //    If your sheet tab is named "Products", then SHEET_NAME = 'Products'
-        const SHEET_NAME = 'PriceList'; // <--- REPLACE THIS (e.g., 'Products', 'Rate Chart')
+        const SHEET_NAME = 'PriceList'; // <--- Your actual Sheet Name
 
         // Construct the Google Sheets CSV export URL
         const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
@@ -267,8 +267,9 @@
             hideMessage();
             clearResults(); // Clear previous results
 
-            if (SPREADSHEET_ID === '1NXd9nH41VBDTczdyHXNZnuvEpam-YxhU0UdGVIc') {
-                showMessage('Please update the SPREADSHEET_ID and SHEET_NAME in the code to your actual Google Sheet details.', 'error');
+            // Check if SPREADSHEET_ID or SHEET_NAME are empty, which would indicate misconfiguration
+            if (!SPREADSHEET_ID || !SHEET_NAME) {
+                showMessage('Error: Google Sheet ID or Sheet Name is missing in the code. Please update them.', 'error');
                 toggleLoadingSpinner(false);
                 return;
             }
@@ -276,23 +277,53 @@
             try {
                 const response = await fetch(GOOGLE_SHEET_URL);
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}. Ensure the sheet is published to the web.`);
+                    // More specific error message for HTTP errors
+                    let errorMessage = `HTTP error! status: ${response.status}.`;
+                    if (response.status === 400) {
+                        errorMessage += " This often means the sheet name is incorrect or the sheet is not published to the web.";
+                    } else if (response.status === 401 || response.status === 403) {
+                        errorMessage += " This usually means the sheet is not publicly accessible or not published to the web.";
+                    }
+                    throw new Error(errorMessage);
                 }
                 const csvText = await response.text();
 
-                // Parse CSV data
-                const rows = csvText.split('\n').map(row => {
-                    // Simple CSV parsing for comma-separated values,
-                    // handles quoted fields with commas inside.
-                    const regex = /(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))/g;
+                // Parse CSV data more robustly
+                const rows = csvText.split('\n').map((row, rowIndex) => {
+                    // Regex to handle commas inside quotes and standard comma separation
+                    const regex = /(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))(?:,|$)/g;
                     let match;
                     const result = [];
+                    let lastIndex = 0;
+                    let iterationCount = 0;
+                    const maxIterations = 1000; // Prevent infinite loops for extremely malformed rows
+
                     while ((match = regex.exec(row)) !== null) {
-                        // If a quoted group is matched, use it; otherwise, use the unquoted group
-                        result.push(match[1] !== undefined ? match[1].replace(/\"\"/g, '\"') : match[2]);
+                        // Check for infinite loop condition (regex not advancing)
+                        if (match.index === lastIndex && match[0].length === 0 && regex.lastIndex === lastIndex) {
+                            console.warn(`CSV parsing: Regex stuck at index ${match.index} for row ${rowIndex}. Breaking loop.`);
+                            break;
+                        }
+                        lastIndex = regex.lastIndex;
+
+                        // Push the captured group (quoted or unquoted)
+                        if (match[1] !== undefined) {
+                            result.push(match[1].replace(/\"\"/g, '\"')); // Handle escaped quotes
+                        } else if (match[2] !== undefined) {
+                            result.push(match[2]);
+                        } else {
+                            // Fallback for unexpected match structure (shouldn't happen with this regex)
+                            result.push('');
+                        }
+
+                        iterationCount++;
+                        if (iterationCount > maxIterations) {
+                            console.error(`CSV parsing: Exceeded max iterations for row ${rowIndex}. Row might be too long or malformed. Breaking.`);
+                            break;
+                        }
                     }
                     return result;
-                }).filter(row => row.length > 0 && row.some(cell => cell.trim() !== '')); // Filter out empty rows
+                }).filter(row => Array.isArray(row) && row.length > 0 && row.some(cell => typeof cell === 'string' && cell.trim() !== '')); // Filter out empty or invalid rows
 
                 if (rows.length === 0) {
                     showMessage('The Google Sheet is empty or could not be parsed.', 'warning');
@@ -308,7 +339,7 @@
 
             } catch (error) {
                 console.error('Error fetching or parsing Google Sheet:', error);
-                showMessage(`Failed to load data from Google Sheet. Error: ${error.message}. Please check the ID/Name and sharing settings.`, 'error');
+                showMessage(`Failed to load data from Google Sheet. Error: ${error.message}. Please ensure the sheet is published to the web as CSV and the ID/Name are correct.`, 'error');
                 excelData = [];
                 headerRow = [];
             } finally {
@@ -437,4 +468,3 @@
     </script>
 </body>
 </html>
-
