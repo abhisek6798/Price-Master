@@ -190,11 +190,11 @@
         // 1. Get your SPREADSHEET_ID from the Google Sheet URL:
         //    Example URL: https://docs.google.com/spreadsheets/d/1A2B3C4D5E6F7G8H9I0J/edit#gid=0
         //    SPREADSHEET_ID would be: 1A2B3C4D5E6F7G8H9I0J
-        const SPREADSHEET_ID = 'YOUR_GOOGLE_SHEET_ID_HERE'; // <--- REPLACE THIS
+        const SPREADSHEET_ID = '1NXd9nH41VBDTczdyHXNZnuvEpam-YxhU0UdGVIc7HEU'; // <--- REPLACE THIS
 
         // 2. Get your SHEET_NAME (usually the tab name at the bottom of the sheet)
         //    If your sheet tab is named "Products", then SHEET_NAME = 'Products'
-        const SHEET_NAME = 'Sheet1'; // <--- REPLACE THIS (e.g., 'Products', 'Rate Chart')
+        const SHEET_NAME = 'PriceList'; // <--- REPLACE THIS (e.g., 'Products', 'Rate Chart')
 
         // Construct the Google Sheets CSV export URL
         const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
@@ -267,7 +267,7 @@
             hideMessage();
             clearResults(); // Clear previous results
 
-            if (SPREADSHEET_ID === 'YOUR_GOOGLE_SHEET_ID_HERE') {
+            if (SPREADSHEET_ID === '1NXd9nH41VBDTczdyHXNZnuvEpam-YxhU0UdGVIc7HEU') {
                 showMessage('Please update the SPREADSHEET_ID and SHEET_NAME in the code to your actual Google Sheet details.', 'error');
                 toggleLoadingSpinner(false);
                 return;
